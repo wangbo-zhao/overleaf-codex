@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overleaf Codex UI Fixture</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: #202520;
+        background: #eef1ef;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .overleaf-bar {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        color: white;
+        background: #138a55;
+        font-weight: 700;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        min-height: calc(100vh - 48px);
+      }
+      aside {
+        padding: 18px;
+        border-right: 1px solid #d8ded9;
+        background: #f8faf8;
+      }
+      aside strong { display: block; margin-bottom: 12px; font-size: 13px; }
+      aside p { color: #69736c; font-size: 12px; }
+      .editor-shell { padding: 34px; }
+      .cm-editor {
+        min-height: 480px;
+        padding: 24px 32px;
+        border: 1px solid #d3dad5;
+        border-radius: 6px;
+        background: white;
+        box-shadow: 0 5px 22px rgb(34 55 42 / 7%);
+      }
+      .cm-content {
+        white-space: pre-wrap;
+        outline: none;
+        font: 15px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .fixture-note {
+        margin-bottom: 18px;
+        color: #657269;
+        font-size: 12px;
+      }
+      #open-fixture-dialog {
+        margin-left: 10px;
+        padding: 5px 9px;
+        border: 0;
+        border-radius: 6px;
+        color: white;
+        background: #138a55;
+      }
+    </style>
+    <script>
+      window.fixtureState = {
+        pollCount: 0,
+        appliedText: null,
+        interruptCount: 0,
+        syncCount: 0,
+      };
+      window.fixtureNoTrace = new URLSearchParams(location.search).has("noTrace");
+      window.fixtureNoSelection = new URLSearchParams(location.search).has("noSelection");
+      window.fixtureHoldActive = new URLSearchParams(location.search).has("holdActive");
+      window.fixtureMultipleCandidates =
+        new URLSearchParams(location.search).has("multipleCandidates");
+      window.fixtureMultipleReferences =
+        new URLSearchParams(location.search).has("multipleReferences");
+      window.fixtureStorage = {
+        bridgeToken: "fixture-token",
+        bridgeUrl: "http://127.0.0.1:47831",
+        model: "",
+        reasoningEffort: ""
+      };
+      if (new URLSearchParams(location.search).has("groupedHistory")) {
+        const now = Date.now();
+        const makeHistory = (id, title, project, age) => ({
+          id,
+          title,
+          createdAt: now - age,
+          updatedAt: now - age,
+          threadId: null,
+          workspaceId: id,
+          project,
+          snapshot: {
+            text: "Selected text.",
+            from: 0,
+            to: 14,
+            documentLength: 14,
+            viewAvailable: true
+          },
+          files: [],
+          messages: [
+            {
+              role: "user",
+              text: title,
+              at: now - age,
+              references: [
+                {
+                  id: `history-reference-${id}`,
+                  name: "main.tex",
+                  relativePath: "main.tex",
+                  startLine: 2,
+                  endLine: 4
+                }
+              ],
+              files: [
+                {
+                  id: `history-file-${id}`,
+                  name: "custom.bib",
+                  relativePath: "custom.bib"
+                }
+              ]
+            }
+          ]
+        });
+        window.fixtureStorage.overleafCodexChatHistoryV1 = [
+          makeHistory(
+            "current-1",
+            "检查当前项目公式",
+            {
+              projectId: "fixture-project",
+              projectName: "Fixture Project",
+              origin: "https://www.overleaf.com",
+              workspaceId: "https://www.overleaf.com|fixture-project"
+            },
+            1000
+          ),
+          makeHistory(
+            "current-2",
+            "整理 Method 章节",
+            {
+              projectId: "fixture-project",
+              projectName: "Fixture Project",
+              origin: "https://www.overleaf.com",
+              workspaceId: "https://www.overleaf.com|fixture-project"
+            },
+            2000
+          ),
+          makeHistory(
+            "other-1",
+            "另一篇论文的实验",
+            {
+              projectId: "other-project",
+              projectName: "Other Paper",
+              origin: "https://www.overleaf.com",
+              workspaceId: "https://www.overleaf.com|other-project"
+            },
+            3000
+          )
+        ];
+      }
+
+      window.chrome = {
+        action: { onClicked: { addListener: () => {} } },
+        commands: { onCommand: { addListener: () => {} } },
+        storage: {
+          local: {
+            get: async (query) => {
+              if (typeof query === "string") {
+                return { [query]: window.fixtureStorage[query] };
+              }
+              if (Array.isArray(query)) {
+                return Object.fromEntries(
+                  query.map((key) => [key, window.fixtureStorage[key]])
+                );
+              }
+              const defaults = query && typeof query === "object" ? query : {};
+              return Object.fromEntries(
+                Object.entries(defaults).map(([key, value]) => [
+                  key,
+                  key in window.fixtureStorage ? window.fixtureStorage[key] : value
+                ])
+              );
+            },
+            set: async (values) => Object.assign(window.fixtureStorage, values)
+          }
+        },
+        tabs: {
+          query: async () => [],
+          sendMessage: async () => {}
+        },
+        scripting: { executeScript: async () => [] },
+        runtime: {
+          getURL: (value) => `../../extension/${value}`,
+          sendMessage: async (message) => {
+            if (message.type === "capture_selection") {
+              return { ok: true, result: window.fixtureCaptureSelection() };
+            }
+            if (message.type === "capture_current_file") {
+              return { ok: true, result: window.fixtureCaptureCurrentFile() };
+            }
+            if (message.type === "get_overleaf_project_context") {
+              return {
+                ok: true,
+                result: {
+                  projectId: "fixture-project",
+                  projectName: "Fixture Project",
+                  origin: "https://www.overleaf.com",
+                  workspaceId: "https://www.overleaf.com|fixture-project"
+                }
+              };
+            }
+            if (
+              message.type === "sync_overleaf_project" ||
+              message.type === "pre_sync_overleaf_project"
+            ) {
+              window.fixtureState.syncCount++;
+              return {
+                ok: true,
+                result: {
+                  synced: true,
+                  workspaceId: "https://www.overleaf.com|fixture-project",
+                  projectId: "fixture-project",
+                  projectName: "Fixture Project",
+                  historyVersion: "fixture-version",
+                  syncedAt: Date.now(),
+                  fileCount: 2,
+                  totalBytes: 2048,
+                  changedCount: 0,
+                  deletedCount: 0
+                }
+              };
+            }
+            if (message.type === "get_settings") {
+              return {
+                ok: true,
+                result: {
+                  bridgeUrl: "http://127.0.0.1:47831",
+                  bridgeToken: "fixture-token",
+                  model: "",
+                  reasoningEffort: ""
+                }
+              };
+            }
+            if (message.type === "save_connection_settings") {
+              window.fixtureStorage.bridgeUrl = message.bridgeUrl;
+              window.fixtureStorage.bridgeToken = message.bridgeToken;
+              return { ok: true, result: { saved: true, bridgeUrl: message.bridgeUrl } };
+            }
+            if (message.type === "save_preferences") {
+              window.fixtureState.preferences = {
+                model: message.model,
+                reasoningEffort: message.reasoningEffort
+              };
+              return { ok: true, result: { saved: true } };
+            }
+            if (message.type === "get_shortcuts") {
+              return {
+                ok: true,
+                result: {
+                  shortcuts: [
+                    {
+                      name: "open-codex-dialog",
+                      shortcut: "Command+Shift+K"
+                    },
+                    {
+                      name: "add-selection-reference",
+                      shortcut: "Command+Shift+I"
+                    }
+                  ]
+                }
+              };
+            }
+            if (message.type === "open_shortcut_settings") {
+              window.fixtureState.shortcutSettingsOpened = true;
+              return { ok: true, result: { opened: true } };
+            }
+            if (message.type === "chat_history_list") {
+              return {
+                ok: true,
+                result: {
+                  conversations:
+                    window.fixtureStorage.overleafCodexChatHistoryV1 || []
+                }
+              };
+            }
+            if (message.type === "chat_history_save") {
+              const current =
+                window.fixtureStorage.overleafCodexChatHistoryV1 || [];
+              const conversations = [
+                message.conversation,
+                ...current.filter((item) => item.id !== message.conversation.id)
+              ].sort((left, right) => right.updatedAt - left.updatedAt);
+              window.fixtureStorage.overleafCodexChatHistoryV1 = conversations;
+              return { ok: true, result: { saved: true, conversations } };
+            }
+            if (message.type === "chat_history_delete") {
+              const conversations = (
+                window.fixtureStorage.overleafCodexChatHistoryV1 || []
+              ).filter((item) => item.id !== message.id);
+              window.fixtureStorage.overleafCodexChatHistoryV1 = conversations;
+              return { ok: true, result: { deleted: true, conversations } };
+            }
+            if (message.type === "history_config_get" || message.type === "history_config_set") {
+              const directory =
+                message.type === "history_config_set" && message.directory
+                  ? message.directory
+                  : "/tmp/codex/sessions/overleaf-codex";
+              return {
+                ok: true,
+                result: {
+                  directory,
+                  defaultDirectory: "/tmp/codex/sessions/overleaf-codex",
+                  filePath: `${directory}/overleaf-codex-history.json`,
+                  isDefault: !message.directory
+                }
+              };
+            }
+            if (message.type === "workspace_config_get" || message.type === "workspace_config_set") {
+              const directory =
+                message.type === "workspace_config_set" && message.directory
+                  ? message.directory
+                  : "/tmp/overleaf-codex/codex-workspace";
+              return {
+                ok: true,
+                result: {
+                  directory,
+                  defaultDirectory: "/tmp/overleaf-codex/codex-workspace",
+                  isDefault: !message.directory
+                }
+              };
+            }
+            if (message.type === "open_options") {
+              return { ok: true, result: { opened: true } };
+            }
+            if (message.type === "apply_replacement") {
+              const result = window.applyOverleafReplacement(
+                message.snapshot,
+                message.replacement
+              );
+              window.fixtureState.appliedText = result.applied ? message.replacement : null;
+              return { ok: true, result };
+            }
+            if (message.type === "bridge_request") {
+              const request = message.request;
+              if (request.path.startsWith("/v1/plugins")) {
+                return {
+                  ok: true,
+                  result: {
+                    plugins: [
+                      {
+                        id: "refine-paper-paragraph@personal",
+                        name: "refine-paper-paragraph",
+                        displayName: "Refine Paper Paragraph",
+                        description: "Polish AI paper paragraphs while preserving LaTeX.",
+                        capabilities: ["writing", "latex preservation"]
+                      }
+                    ]
+                  }
+                };
+              }
+              if (request.path.startsWith("/v1/models")) {
+                return {
+                  ok: true,
+                  result: {
+                    models: [
+                      {
+                        id: "gpt-5.6-sol",
+                        model: "gpt-5.6-sol",
+                        displayName: "GPT-5.6-Sol",
+                        description: "Latest frontier agentic coding model.",
+                        isDefault: true,
+                        defaultReasoningEffort: "low",
+                        supportedReasoningEfforts: [
+                          { reasoningEffort: "low", description: "Fast responses with lighter reasoning" },
+                          { reasoningEffort: "medium", description: "Balanced for everyday tasks" },
+                          { reasoningEffort: "high", description: "Greater depth for complex problems" },
+                          { reasoningEffort: "xhigh", description: "Extra high reasoning depth" },
+                          { reasoningEffort: "max", description: "Maximum reasoning depth" },
+                          { reasoningEffort: "ultra", description: "Maximum reasoning with delegation" }
+                        ]
+                      },
+                      {
+                        id: "gpt-5.6-terra",
+                        model: "gpt-5.6-terra",
+                        displayName: "GPT-5.6-Terra",
+                        description: "Balanced agentic model for everyday work.",
+                        isDefault: false,
+                        defaultReasoningEffort: "medium",
+                        supportedReasoningEfforts: [
+                          { reasoningEffort: "low", description: "Fast responses with lighter reasoning" },
+                          { reasoningEffort: "medium", description: "Balanced for everyday tasks" },
+                          { reasoningEffort: "high", description: "Greater depth for complex problems" }
+                        ]
+                      }
+                    ]
+                  }
+                };
+              }
+              if (request.path === "/v1/turns") {
+                window.fixtureState.pollCount = 0;
+                document.documentElement.dataset.lastTurn = JSON.stringify(request.body);
+                return {
+                  ok: true,
+                  result: {
+                    jobId: "fixture-job",
+                    threadId: "fixture-thread",
+                    turnId: "fixture-turn",
+                    workspaceId: request.body.workspaceId,
+                    files: (request.body.files || []).map((file) => ({
+                      id: file.id,
+                      name: file.name,
+                      length: file.content?.length || file.length || 0,
+                      sha256: file.sha256,
+                      editorIndex: file.editorIndex,
+                      capturedAt: file.capturedAt,
+                      changed: typeof file.content === "string"
+                    }))
+                  }
+                };
+              }
+              if (request.path.startsWith("/v1/jobs/fixture-job?")) {
+                window.fixtureState.pollCount++;
+                if (window.fixtureState.pollCount === 1) {
+                  return {
+                    ok: true,
+                    result: {
+                      status: "active",
+                      events: window.fixtureNoTrace ? [] : [
+                        {
+                          sequence: 1,
+                          type: "reasoning_started",
+                          data: { itemId: "reasoning-1", summary: [] }
+                        },
+                        {
+                          sequence: 2,
+                          type: "reasoning_part",
+                          data: { itemId: "reasoning-1", summaryIndex: 0 }
+                        },
+                        {
+                          sequence: 3,
+                          type: "reasoning_delta",
+                          data: {
+                            itemId: "reasoning-1",
+                            summaryIndex: 0,
+                            delta: "正在检查主谓一致和 LaTeX 数学表达。"
+                          }
+                        },
+                        {
+                          sequence: 4,
+                          type: "commentary_started",
+                          data: { itemId: "commentary-1" }
+                        },
+                        {
+                          sequence: 5,
+                          type: "commentary_delta",
+                          data: {
+                            itemId: "commentary-1",
+                            delta: "我会先检查语法，再保留原有 LaTeX 结构。"
+                          }
+                        },
+                        {
+                          sequence: 6,
+                          type: "tool_started",
+                          data: { type: "mcpToolCall", server: "paper_library", tool: "search" }
+                        }
+                      ]
+                    }
+                  };
+                }
+                if (window.fixtureHoldActive) {
+                  return {
+                    ok: true,
+                    result: {
+                      status: "active",
+                      events: []
+                    }
+                  };
+                }
+                return {
+                  ok: true,
+                  result: {
+                    status: "completed",
+                    events: window.fixtureNoTrace ? [
+                      {
+                        sequence: 1,
+                        type: "result",
+                        data: {
+                          message: String.raw`## Formula check
+
+Peak token is $s_c^*$.
+
+$$
+\mathcal M_c = \operatorname{idx}(\mathcal T)
+$$
+
+- Preserved **LaTeX**
+- Checked the surrounding paragraph`,
+                          replacement: window.fixtureMultipleCandidates
+                            ? null
+                            : "Our method achieves better results on $D_{test}$.",
+                          replacements: window.fixtureMultipleCandidates
+                            ? [
+                                {
+                                  text: "Our method achieves better results on $D_{test}$.",
+                                  referenceIndex: 0,
+                                  label: "平衡版"
+                                },
+                                {
+                                  text: "Our method improves results on $D_{test}$.",
+                                  referenceIndex: 0,
+                                  label: "精简版"
+                                },
+                                {
+                                  text: window.fixtureMultipleReferences
+                                    ? "The improvement remains statistically significant across all evaluated settings."
+                                    : "Our method delivers consistently stronger performance on $D_{test}$.",
+                                  referenceIndex: window.fixtureMultipleReferences ? 1 : 0,
+                                  label: "正式版"
+                                }
+                              ]
+                            : [],
+                          warnings: ["请确认 “better” 在上下文中有明确比较对象。"]
+                        }
+                      }
+                    ] : [
+                        {
+                          sequence: 7,
+                          type: "tool_completed",
+                          data: {
+                            type: "mcpToolCall",
+                            server: "paper_library",
+                            tool: "search",
+                            status: "completed"
+                          }
+                        },
+                        {
+                          sequence: 8,
+                          type: "reasoning_completed",
+                          data: {
+                            itemId: "reasoning-1",
+                            summary: ["正在检查主谓一致和 LaTeX 数学表达。"]
+                          }
+                        },
+                        {
+                          sequence: 9,
+                          type: "result",
+                          data: {
+                            message: String.raw`## Formula check
+
+Peak token is $s_c^*$.
+
+$$
+\mathcal M_c = \operatorname{idx}(\mathcal T)
+$$
+
+- Preserved **LaTeX**
+- Checked the surrounding paragraph`,
+                            replacement: window.fixtureMultipleCandidates
+                              ? null
+                              : "Our method achieves better results on $D_{test}$.",
+                            replacements: window.fixtureMultipleCandidates
+                              ? [
+                                  {
+                                    text: "Our method achieves better results on $D_{test}$.",
+                                    referenceIndex: 0,
+                                    label: "平衡版"
+                                  },
+                                  {
+                                    text: "Our method improves results on $D_{test}$.",
+                                    referenceIndex: 0,
+                                    label: "精简版"
+                                  },
+                                  {
+                                    text: window.fixtureMultipleReferences
+                                      ? "The improvement remains statistically significant across all evaluated settings."
+                                      : "Our method delivers consistently stronger performance on $D_{test}$.",
+                                    referenceIndex: window.fixtureMultipleReferences ? 1 : 0,
+                                    label: "正式版"
+                                  }
+                                ]
+                              : [],
+                            warnings: ["请确认 “better” 在上下文中有明确比较对象。"]
+                          }
+                        }
+                      ]
+                  }
+                };
+              }
+              if (request.path.endsWith("/steer")) {
+                document.documentElement.dataset.lastSteer = JSON.stringify(request.body);
+                return {
+                  ok: true,
+                  result: { ok: true, turnId: "fixture-turn" }
+                };
+              }
+              if (request.path.endsWith("/interrupt")) {
+                window.fixtureState.interruptCount++;
+                return { ok: true, result: { ok: true } };
+              }
+              if (request.path.includes("/requests/")) {
+                return { ok: true, result: { ok: true } };
+              }
+            }
+            return { ok: false, error: "Unhandled fixture message" };
+          },
+          onInstalled: { addListener: () => {} },
+          onMessage: {
+            addListener: (listener) => {
+              window.fixtureContentListener = listener;
+            }
+          },
+          openOptionsPage: async () => {}
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <div class="overleaf-bar">Overleaf · UI Fixture</div>
+    <div class="workspace">
+      <aside>
+        <strong>Project files</strong>
+        <p>main.tex</p>
+        <p>references.bib</p>
+      </aside>
+      <main class="editor-shell">
+        <p class="fixture-note">
+          Drag over the second sentence to open the real extension content UI.
+          <button id="open-fixture-dialog" type="button">Open test dialog</button>
+        </p>
+        <div class="cm-editor">
+          <div class="cm-content" contenteditable="true">\section{Method}
+We evaluate our approach.
+<span id="selected-line">Our method get better result on $D_{test}$.</span>
+The improvement is statistically significant.</div>
+        </div>
+      </main>
+    </div>
+    <script src="../../extension/background.js"></script>
+    <script>
+      (() => {
+        let documentText = document.querySelector(".cm-content").textContent;
+        const selectedText = document.querySelector("#selected-line").textContent;
+        const selectionFrom = documentText.indexOf(selectedText);
+        const selectionTo = selectionFrom + selectedText.length;
+        const doc = {
+          get length() {
+            return documentText.length;
+          },
+          sliceString(from, to) {
+            return documentText.slice(from, to);
+          }
+        };
+        const view = {
+          state: {
+            doc,
+            selection: { main: { from: selectionFrom, to: selectionTo } }
+          },
+          dispatch(spec) {
+            const { from, to, insert } = spec.changes;
+            documentText = documentText.slice(0, from) + insert + documentText.slice(to);
+            this.state.selection.main = spec.selection;
+            document.querySelector("#selected-line").textContent = insert;
+          },
+          focus() {}
+        };
+        document.querySelector(".cm-editor").cmView = view;
+        window.fixtureReferenceIndex = 0;
+        window.fixtureCaptureSelection = () => ({
+          available: true,
+          text:
+            window.fixtureNoSelection
+              ? ""
+              : window.fixtureReferenceIndex
+                ? "The improvement is statistically significant."
+                : selectedText,
+          from: window.fixtureReferenceIndex ? selectionTo + 1 : selectionFrom,
+          to:
+            window.fixtureReferenceIndex
+              ? selectionTo + 46
+              : window.fixtureNoSelection
+                ? selectionFrom
+                : selectionTo,
+          documentLength: documentText.length,
+          contextBefore: documentText.slice(Math.max(0, selectionFrom - 1200), selectionFrom),
+          contextAfter: documentText.slice(
+            window.fixtureNoSelection ? selectionFrom : selectionTo,
+            (window.fixtureNoSelection ? selectionFrom : selectionTo) + 1200
+          ),
+          anchorBefore: documentText.slice(Math.max(0, selectionFrom - 80), selectionFrom),
+          anchorAfter: documentText.slice(
+            window.fixtureNoSelection ? selectionFrom : selectionTo,
+            (window.fixtureNoSelection ? selectionFrom : selectionTo) + 80
+          ),
+          viewAvailable: true,
+          filePath: window.fixtureReferenceIndex ? "sections/results.tex" : "main.tex",
+          fileName: window.fixtureReferenceIndex ? "results.tex" : "main.tex",
+          lineStart: window.fixtureReferenceIndex ? 31 : 2,
+          lineEnd: window.fixtureReferenceIndex ? 32 : 2,
+          lineText:
+            window.fixtureReferenceIndex
+              ? "The improvement is statistically significant."
+              : selectedText,
+          rect: { left: 500, right: 760, top: 250, bottom: 275 }
+        });
+        window.fixtureCaptureCurrentFile = () => ({
+          available: true,
+          name: "main.tex",
+          relativePath: "main.tex",
+          content: documentText,
+          length: documentText.length,
+          editorIndex: 0,
+          capturedAt: Date.now()
+        });
+      })();
+    </script>
+    <script src="../../extension/vendor/markdown-it/markdown-it.min.js"></script>
+    <script src="../../extension/vendor/katex/katex.min.js"></script>
+    <script src="../../extension/message-renderer.js"></script>
+    <script src="../../extension/content.js"></script>
+    <script>
+      const fixtureOpenButton = document.querySelector("#open-fixture-dialog");
+      fixtureOpenButton.addEventListener("click", () => {
+        window.fixtureContentListener?.({ type: "open_from_shortcut" });
+      });
+      if (new URLSearchParams(location.search).has("settings")) {
+        fixtureOpenButton.click();
+        window.setTimeout(() => {
+          document
+            .querySelector("#overleaf-codex-root")
+            ?.shadowRoot?.querySelector(".settings-button")
+            ?.click();
+        }, 150);
+      }
+      if (new URLSearchParams(location.search).has("history")) {
+        fixtureOpenButton.click();
+        window.setTimeout(() => {
+          document
+            .querySelector("#overleaf-codex-root")
+            ?.shadowRoot?.querySelector(".history-button")
+            ?.click();
+        }, 180);
+      }
+      if (new URLSearchParams(location.search).has("conversation")) {
+        fixtureOpenButton.click();
+        window.setTimeout(() => {
+          window.fixtureContentListener?.({
+            type: "add_reference_from_shortcut"
+          });
+          if (new URLSearchParams(location.search).has("multipleReferences")) {
+            window.fixtureReferenceIndex = 1;
+            window.fixtureContentListener?.({
+              type: "add_reference_from_shortcut"
+            });
+          }
+        }, 120);
+        window.setTimeout(() => {
+          const root = document.querySelector("#overleaf-codex-root")?.shadowRoot;
+          const textarea = root?.querySelector("textarea");
+          if (!textarea) return;
+          textarea.value = "Check the formula rendering.";
+          textarea.dispatchEvent(new Event("input", { bubbles: true }));
+          root.querySelector(".send-button")?.click();
+        }, 220);
+        if (new URLSearchParams(location.search).has("queued")) {
+          window.setTimeout(() => {
+            const root = document.querySelector("#overleaf-codex-root")?.shadowRoot;
+            const textarea = root?.querySelector("textarea");
+            if (!textarea) return;
+            textarea.value = "Keep the display equation unchanged.";
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+            root.querySelector(".send-button")?.click();
+          }, 235);
+          if (new URLSearchParams(location.search).has("clickSteer")) {
+            window.setTimeout(() => {
+              document
+                .querySelector("#overleaf-codex-root")
+                ?.shadowRoot?.querySelector(".pending-steer-button")
+                ?.click();
+            }, 305);
+          }
+        }
+        if (new URLSearchParams(location.search).has("modelDuringTurn")) {
+          window.setTimeout(() => {
+            document
+              .querySelector("#overleaf-codex-root")
+              ?.shadowRoot?.querySelector(".model-button")
+              ?.click();
+          }, 280);
+        }
+        if (new URLSearchParams(location.search).has("historyDuringTurn")) {
+          window.setTimeout(() => {
+            document
+              .querySelector("#overleaf-codex-root")
+              ?.shadowRoot?.querySelector(".history-button")
+              ?.click();
+          }, 300);
+        }
+      }
+    </script>
+  </body>
+</html>

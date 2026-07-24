@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overleaf Codex 设置</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="settings-page">
+      <header class="settings-header">
+        <div class="mark" aria-hidden="true">C</div>
+        <div>
+          <p class="eyebrow">OVERLEAF CODEX</p>
+          <h1>设置</h1>
+          <p class="subtitle">连接 Chrome 扩展与本机 Codex。</p>
+        </div>
+      </header>
+
+      <section class="settings-card">
+        <div class="section-heading">
+          <div>
+            <h2>本机桥接</h2>
+            <p>桥接服务只在你的电脑上运行。</p>
+          </div>
+          <span class="local-badge">LOCAL</span>
+        </div>
+
+        <div class="field">
+          <label for="bridgeUrl">桥接地址</label>
+          <input id="bridgeUrl" type="url" spellcheck="false" />
+          <p class="hint">仅允许 127.0.0.1 或 localhost。</p>
+        </div>
+
+        <div class="field">
+          <label for="bridgeToken">桥接 Token</label>
+          <div class="token-row">
+            <input
+              id="bridgeToken"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button id="reveal" class="secondary compact" type="button">显示</button>
+          </div>
+          <p class="hint">运行 <code>npm run show-token</code> 获取。</p>
+        </div>
+
+        <div class="field">
+          <label for="historyDirectory">历史会话目录</label>
+          <div class="token-row">
+            <input
+              id="historyDirectory"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="正在读取默认目录…"
+            />
+            <button id="resetHistoryDirectory" class="secondary compact" type="button">
+              默认
+            </button>
+          </div>
+          <p id="historyDirectoryHint" class="hint">
+            默认保存在 Codex sessions 目录下的专用子目录。
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="workspaceDirectory">项目工作区目录</label>
+          <div class="token-row">
+            <input
+              id="workspaceDirectory"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="正在读取默认目录…"
+            />
+            <button id="resetWorkspaceDirectory" class="secondary compact" type="button">
+              默认
+            </button>
+          </div>
+          <p id="workspaceDirectoryHint" class="hint">
+            Overleaf 完整项目会同步到这个本地目录。
+          </p>
+        </div>
+
+        <div class="info-row">
+          <span>模型和推理强度</span>
+          <span>在 Overleaf 聊天输入器中选择并自动保存</span>
+        </div>
+
+        <div class="actions">
+          <button id="save" type="button">保存设置</button>
+          <button id="test" class="secondary" type="button">测试连接</button>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="settings-card steps">
+        <div class="section-heading">
+          <div>
+            <h2>使用方法</h2>
+            <p>保持本机桥接运行，再从 Overleaf 唤起 Codex。</p>
+          </div>
+        </div>
+        <ol>
+          <li><span>1</span><div>在项目目录运行 <code>npm start</code>。</div></li>
+          <li><span>2</span><div>粘贴终端显示的 Token，然后保存并测试连接。</div></li>
+          <li><span>3</span><div>在 Overleaf 源码编辑器选中文字。</div></li>
+          <li>
+            <span>4</span>
+            <div>
+              按 <kbd>⌘ ⇧ K</kbd>（macOS）或
+              <kbd>Ctrl ⇧ K</kbd>（Windows/Linux）打开。
+            </div>
+          </li>
+        </ol>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

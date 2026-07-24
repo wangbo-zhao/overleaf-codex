@@ -1,0 +1,32 @@
+{
+  "name": "overleaf-codex",
+  "version": "1.7.0",
+  "private": true,
+  "type": "module",
+  "description": "Unofficial local Codex conversations, project context, and safe edits for the Overleaf source editor.",
+  "license": "MIT",
+  "keywords": [
+    "chrome-extension",
+    "codex",
+    "latex",
+    "overleaf"
+  ],
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "katex": "^0.18.1",
+    "markdown-it": "^14.3.0"
+  },
+  "scripts": {
+    "postinstall": "node scripts/prepare-extension-assets.mjs",
+    "prepare:extension": "node scripts/prepare-extension-assets.mjs",
+    "start": "node bridge/server.mjs",
+    "show-token": "node bridge/server.mjs --show-token",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "package:extension": "npm run prepare:extension && node scripts/package-extension.mjs",
+    "release:check": "npm run prepare:extension && npm run check && npm test && node scripts/package-extension.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
