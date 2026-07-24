@@ -40,7 +40,7 @@ CLI also supports `codex login --device-auth`. See the official
 Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/wangbo-zhao/overleaf-codex.git
 cd overleaf-codex
 ```
 

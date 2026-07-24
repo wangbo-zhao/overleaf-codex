@@ -17,6 +17,11 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/wangbo-zhao/overleaf-codex/actions/workflows/ci.yml"><img src="https://github.com/wangbo-zhao/overleaf-codex/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
 > [!IMPORTANT]
 > Overleaf Codex is an independent community project. It is not affiliated with,
 > endorsed by, or sponsored by OpenAI or Overleaf. “OpenAI,” “Codex,” and
@@ -87,7 +92,7 @@ current installation and sign-in options.
 ## Quick start
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/wangbo-zhao/overleaf-codex.git
 cd overleaf-codex
 npm ci
 npm run check

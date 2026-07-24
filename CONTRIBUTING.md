@@ -13,8 +13,10 @@ Thank you for helping improve Overleaf Codex.
 
 ## Development setup
 
+Fork the repository on GitHub, then clone your fork:
+
 ```bash
-git clone <your-fork-url>
+git clone git@github.com:<your-account>/overleaf-codex.git
 cd overleaf-codex
 npm ci
 npm run release:check

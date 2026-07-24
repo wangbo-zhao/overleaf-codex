@@ -17,6 +17,11 @@
   <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
 
+<p align="center">
+  <a href="https://github.com/wangbo-zhao/overleaf-codex/actions/workflows/ci.yml"><img src="https://github.com/wangbo-zhao/overleaf-codex/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+</p>
+
 > [!IMPORTANT]
 > Overleaf Codex 是独立的社区项目，与 OpenAI、Overleaf 不存在隶属、授权、
 > 赞助或官方合作关系。“OpenAI”“Codex”和“Overleaf”均为其各自权利人的商标。
@@ -83,7 +88,7 @@ codex login status
 ## 快速开始
 
 ```bash
-git clone <仓库地址>
+git clone https://github.com/wangbo-zhao/overleaf-codex.git
 cd overleaf-codex
 npm ci
 npm run check

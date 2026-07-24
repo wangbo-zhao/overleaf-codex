@@ -5,6 +5,14 @@
   "type": "module",
   "description": "Unofficial local Codex conversations, project context, and safe edits for the Overleaf source editor.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wangbo-zhao/overleaf-codex.git"
+  },
+  "homepage": "https://github.com/wangbo-zhao/overleaf-codex#readme",
+  "bugs": {
+    "url": "https://github.com/wangbo-zhao/overleaf-codex/issues"
+  },
   "keywords": [
     "chrome-extension",
     "codex",
