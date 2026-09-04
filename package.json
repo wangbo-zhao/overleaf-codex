@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "fflate": "^0.8.3",
-    "katex": "^0.18.1",
+    "katex": "^0.18.5",
     "markdown-it": "^14.3.0"
   },
   "scripts": {
